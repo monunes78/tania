@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { apiFetch } from "@/lib/api";
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  ragSources?: string[];
 }
 
 export default function ChatPage() {
@@ -17,6 +17,7 @@ export default function ChatPage() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [streaming, setStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
+  const [pendingRagSources, setPendingRagSources] = useState<string[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export default function ChatPage() {
     ]);
     setStreaming(true);
     setStreamingContent("");
+    setPendingRagSources([]);
 
     const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -57,6 +59,7 @@ export default function ChatPage() {
       const reader = res.body!.getReader();
       const decoder = new TextDecoder();
       let accumulated = "";
+      let localRagSources: string[] = [];
 
       while (true) {
         const { done, value } = await reader.read();
@@ -69,6 +72,11 @@ export default function ChatPage() {
           if (!line.startsWith("data: ")) continue;
           try {
             const data = JSON.parse(line.slice(6));
+
+            if (data.rag_sources) {
+              localRagSources = data.rag_sources;
+              setPendingRagSources(localRagSources);
+            }
             if (data.token) {
               accumulated += data.token;
               setStreamingContent(accumulated);
@@ -76,19 +84,21 @@ export default function ChatPage() {
             if (data.done) {
               setMessages((prev) => [
                 ...prev,
-                { id: data.message_id, role: "assistant", content: accumulated },
+                {
+                  id: data.message_id,
+                  role: "assistant",
+                  content: accumulated,
+                  ragSources: localRagSources.length > 0 ? localRagSources : undefined,
+                },
               ]);
               setStreamingContent("");
-              if (!conversationId) {
-                // Extract conversation_id from next request — not available here,
-                // so we'll fetch conversations after first message
-              }
+              setPendingRagSources([]);
             }
             if (data.error) {
               throw new Error(data.error);
             }
           } catch {
-            // skip malformed SSE lines
+            // skip malformed lines
           }
         }
       }
@@ -96,11 +106,7 @@ export default function ChatPage() {
       const msg = e instanceof Error ? e.message : "Erro desconhecido";
       setMessages((prev) => [
         ...prev,
-        {
-          id: Date.now().toString(),
-          role: "assistant",
-          content: `⚠️ ${msg}`,
-        },
+        { id: Date.now().toString(), role: "assistant", content: `⚠️ ${msg}` },
       ]);
       setStreamingContent("");
     } finally {
@@ -132,13 +138,7 @@ export default function ChatPage() {
       }}
     >
       {/* Toolbar */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          marginBottom: "0.75rem",
-        }}
-      >
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "0.75rem" }}>
         <button
           onClick={newConversation}
           style={{
@@ -182,68 +182,90 @@ export default function ChatPage() {
         )}
 
         {messages.map((msg) => (
-          <div
-            key={msg.id}
-            style={{
-              display: "flex",
-              justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
-            }}
-          >
+          <div key={msg.id}>
             <div
               style={{
-                maxWidth: "75%",
-                padding: "0.75rem 1rem",
-                borderRadius: "0.75rem",
-                fontSize: "0.9375rem",
-                lineHeight: "1.6",
-                background:
-                  msg.role === "user"
-                    ? "var(--primary)"
-                    : "var(--card)",
-                color:
-                  msg.role === "user"
-                    ? "var(--primary-foreground)"
-                    : "var(--foreground)",
-                border: msg.role === "assistant" ? "1px solid var(--border)" : "none",
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
+                display: "flex",
+                justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
               }}
             >
-              {msg.content}
+              <div
+                style={{
+                  maxWidth: "75%",
+                  padding: "0.75rem 1rem",
+                  borderRadius: "0.75rem",
+                  fontSize: "0.9375rem",
+                  lineHeight: "1.6",
+                  background: msg.role === "user" ? "var(--primary)" : "var(--card)",
+                  color: msg.role === "user" ? "var(--primary-foreground)" : "var(--foreground)",
+                  border: msg.role === "assistant" ? "1px solid var(--border)" : "none",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                }}
+              >
+                {msg.content}
+              </div>
             </div>
+            {/* Fontes RAG */}
+            {msg.role === "assistant" && msg.ragSources && msg.ragSources.length > 0 && (
+              <div
+                style={{
+                  marginTop: "0.25rem",
+                  fontSize: "0.75rem",
+                  color: "var(--muted-foreground)",
+                  paddingLeft: "0.25rem",
+                }}
+              >
+                📎 {msg.ragSources.length} fonte(s) da base de conhecimento consultada(s)
+              </div>
+            )}
           </div>
         ))}
 
         {/* Streaming */}
         {streamingContent && (
-          <div style={{ display: "flex", justifyContent: "flex-start" }}>
-            <div
-              style={{
-                maxWidth: "75%",
-                padding: "0.75rem 1rem",
-                borderRadius: "0.75rem",
-                fontSize: "0.9375rem",
-                lineHeight: "1.6",
-                background: "var(--card)",
-                color: "var(--foreground)",
-                border: "1px solid var(--border)",
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
-              }}
-            >
-              {streamingContent}
-              <span
+          <div>
+            <div style={{ display: "flex", justifyContent: "flex-start" }}>
+              <div
                 style={{
-                  display: "inline-block",
-                  width: "2px",
-                  height: "1em",
-                  background: "var(--primary)",
-                  marginLeft: "2px",
-                  animation: "blink 1s step-start infinite",
-                  verticalAlign: "text-bottom",
+                  maxWidth: "75%",
+                  padding: "0.75rem 1rem",
+                  borderRadius: "0.75rem",
+                  fontSize: "0.9375rem",
+                  lineHeight: "1.6",
+                  background: "var(--card)",
+                  color: "var(--foreground)",
+                  border: "1px solid var(--border)",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
                 }}
-              />
+              >
+                {streamingContent}
+                <span
+                  style={{
+                    display: "inline-block",
+                    width: "2px",
+                    height: "1em",
+                    background: "var(--primary)",
+                    marginLeft: "2px",
+                    animation: "blink 1s step-start infinite",
+                    verticalAlign: "text-bottom",
+                  }}
+                />
+              </div>
             </div>
+            {pendingRagSources.length > 0 && (
+              <div
+                style={{
+                  marginTop: "0.25rem",
+                  fontSize: "0.75rem",
+                  color: "var(--muted-foreground)",
+                  paddingLeft: "0.25rem",
+                }}
+              >
+                📎 consultando {pendingRagSources.length} fonte(s)…
+              </div>
+            )}
           </div>
         )}
 

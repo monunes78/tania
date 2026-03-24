@@ -1,9 +1,8 @@
 """
-Chat — endpoint básico sem RAG (Phase 2).
-RAG será adicionado na Phase 3.
+Chat com RAG — busca semântica no Qdrant antes de chamar o LLM.
 """
 import json
-from typing import Optional
+from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -13,6 +12,7 @@ from src.db.session import get_db
 from src.api.dependencies import get_current_user
 from src.models.user import User
 from src.models.agent import Agent
+from src.models.document import Document
 from src.models.conversation import Conversation, Message
 from src.core.llm import litellm_client
 
@@ -23,11 +23,6 @@ class ChatRequest(BaseModel):
     agent_id: str
     message: str
     conversation_id: Optional[str] = None
-
-
-class ConversationResponse(BaseModel):
-    conversation_id: str
-    message_id: str
 
 
 def _get_agent_or_404(agent_id: str, db: Session) -> Agent:
@@ -61,13 +56,76 @@ def _get_or_create_conversation(
     return conv
 
 
-def _build_messages(agent: Agent, conversation: Conversation, user_message: str, db: Session) -> list[dict]:
+def _retrieve_context(agent: Agent, query: str, user_id: str, db: Session) -> tuple[str, List[str]]:
+    """
+    Busca chunks relevantes no Qdrant.
+    Retorna (context_block, list_of_doc_ids_used).
+    """
+    if not agent.qdrant_collection:
+        return "", []
+
+    try:
+        from src.core.rag import embedder, qdrant_store
+
+        # Documentos que o usuário pode ver
+        accessible_docs = (
+            db.query(Document)
+            .filter(
+                Document.agent_id == agent.id,
+                Document.status == "indexed",
+                Document.classification == "public",
+            )
+            .all()
+        )
+        # TODO Phase 3+: adicionar documentos confidenciais onde user_id está na access_list
+
+        if not accessible_docs:
+            return "", []
+
+        allowed_ids = [str(d.id) for d in accessible_docs]
+        query_vector = embedder.embed_one(query)
+
+        results = qdrant_store.search(
+            collection_name=agent.qdrant_collection,
+            query_vector=query_vector,
+            top_k=agent.max_context_chunks,
+            score_threshold=0.35,
+            filter_document_ids=allowed_ids,
+        )
+
+        if not results:
+            return "", []
+
+        # Monta bloco de contexto com citações
+        lines = ["## Contexto relevante da base de conhecimento:\n"]
+        used_ids = []
+        doc_names: dict[str, str] = {str(d.id): d.original_name for d in accessible_docs}
+
+        for i, hit in enumerate(results, 1):
+            doc_id = hit.payload.get("document_id", "")
+            doc_name = doc_names.get(doc_id, "Documento")
+            lines.append(f"[{i}] **{doc_name}** (relevância: {hit.score:.0%})\n{hit.payload.get('text', '')}\n")
+            if doc_id not in used_ids:
+                used_ids.append(doc_id)
+
+        return "\n".join(lines), used_ids
+
+    except Exception:
+        # RAG falha silenciosamente — LLM responde sem contexto
+        return "", []
+
+
+def _build_messages(agent: Agent, conversation: Conversation, user_message: str, context: str, db: Session) -> list[dict]:
     messages = []
 
-    if agent.system_prompt:
-        messages.append({"role": "system", "content": agent.system_prompt})
+    system = agent.system_prompt or ""
+    if context:
+        system = f"{system}\n\n{context}" if system else context
 
-    # Histórico recente (últimas 10 trocas)
+    if system:
+        messages.append({"role": "system", "content": system})
+
+    # Histórico recente (últimas 20 mensagens = 10 trocas)
     history = (
         db.query(Message)
         .filter(Message.conversation_id == conversation.id)
@@ -88,17 +146,14 @@ def send_message(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Chat síncrono — retorna resposta completa."""
+    """Chat síncrono com RAG."""
     agent = _get_agent_or_404(payload.agent_id, db)
     conv = _get_or_create_conversation(payload.conversation_id, agent.id, current_user.id, db)
-    messages = _build_messages(agent, conv, payload.message, db)
 
-    # Salva mensagem do usuário
-    user_msg = Message(
-        conversation_id=conv.id,
-        role="user",
-        content=payload.message,
-    )
+    context, rag_doc_ids = _retrieve_context(agent, payload.message, str(current_user.id), db)
+    messages = _build_messages(agent, conv, payload.message, context, db)
+
+    user_msg = Message(conversation_id=conv.id, role="user", content=payload.message)
     db.add(user_msg)
     db.flush()
 
@@ -113,11 +168,12 @@ def send_message(
     except ValueError as e:
         raise HTTPException(status_code=503, detail=str(e))
 
-    # Salva resposta do assistente
+    import json as _json
     assistant_msg = Message(
         conversation_id=conv.id,
         role="assistant",
         content=response_text,
+        rag_chunks_used=_json.dumps(rag_doc_ids) if rag_doc_ids else None,
     )
     db.add(assistant_msg)
     db.commit()
@@ -126,6 +182,7 @@ def send_message(
         "conversation_id": conv.id,
         "message_id": assistant_msg.id,
         "content": response_text,
+        "rag_sources": rag_doc_ids,
     }
 
 
@@ -135,12 +192,13 @@ def stream_message(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Chat com streaming SSE."""
+    """Chat com streaming SSE + RAG."""
     agent = _get_agent_or_404(payload.agent_id, db)
     conv = _get_or_create_conversation(payload.conversation_id, agent.id, current_user.id, db)
-    messages = _build_messages(agent, conv, payload.message, db)
 
-    # Salva mensagem do usuário
+    context, rag_doc_ids = _retrieve_context(agent, payload.message, str(current_user.id), db)
+    messages = _build_messages(agent, conv, payload.message, context, db)
+
     user_msg = Message(conversation_id=conv.id, role="user", content=payload.message)
     db.add(user_msg)
     db.commit()
@@ -150,6 +208,10 @@ def stream_message(
     def generate():
         full_response = []
         try:
+            # Envia fontes RAG antes de começar o streaming
+            if rag_doc_ids:
+                yield f"data: {json.dumps({'rag_sources': rag_doc_ids})}\n\n"
+
             for token in litellm_client.stream(
                 messages=messages,
                 db=db,
@@ -160,12 +222,12 @@ def stream_message(
                 full_response.append(token)
                 yield f"data: {json.dumps({'token': token})}\n\n"
 
-            # Salva resposta completa
             full_text = "".join(full_response)
             assistant_msg = Message(
                 conversation_id=conversation_id,
                 role="assistant",
                 content=full_text,
+                rag_chunks_used=json.dumps(rag_doc_ids) if rag_doc_ids else None,
             )
             db.add(assistant_msg)
             db.commit()
@@ -191,7 +253,6 @@ def list_conversations(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Lista conversas do usuário com um agente."""
     convs = (
         db.query(Conversation)
         .filter(
@@ -203,11 +264,7 @@ def list_conversations(
         .all()
     )
     return [
-        {
-            "id": c.id,
-            "created_at": c.created_at,
-            "updated_at": c.updated_at,
-        }
+        {"id": c.id, "created_at": c.created_at, "updated_at": c.updated_at}
         for c in convs
     ]
 
@@ -218,7 +275,6 @@ def get_messages(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Retorna mensagens de uma conversa."""
     conv = db.query(Conversation).filter(
         Conversation.id == conversation_id,
         Conversation.user_id == current_user.id,
@@ -233,11 +289,6 @@ def get_messages(
         .all()
     )
     return [
-        {
-            "id": m.id,
-            "role": m.role,
-            "content": m.content,
-            "created_at": m.created_at,
-        }
+        {"id": m.id, "role": m.role, "content": m.content, "created_at": m.created_at}
         for m in msgs
     ]

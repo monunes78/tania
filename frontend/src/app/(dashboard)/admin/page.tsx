@@ -19,6 +19,12 @@ const adminCards = [
     title: "Configurações LLM",
     description: "Gerencie provedores e modelos de linguagem",
   },
+  {
+    href: "/admin/documents",
+    icon: "📄",
+    title: "Base de Conhecimento",
+    description: "Upload e indexação de documentos por agente",
+  },
 ];
 
 export default function AdminPage() {
