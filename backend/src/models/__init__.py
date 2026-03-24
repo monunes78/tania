@@ -8,9 +8,11 @@ from src.models.llm_config import LLMConfiguration
 from src.models.schedule import Schedule
 from src.models.db_connection import DBConnection
 from src.models.audit_log import AuditLog
+from src.models.agent_prompt_history import AgentPromptHistory
 
 __all__ = [
     "Base", "User", "Department", "DepartmentAccess", "Agent",
     "Document", "DocumentAccess", "Conversation", "Message",
     "LLMConfiguration", "Schedule", "DBConnection", "AuditLog",
+    "AgentPromptHistory",
 ]

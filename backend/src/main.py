@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 import structlog
 
 from src.config import settings
-from src.api.v1 import auth
+from src.api.v1 import auth, departments, agents, admin, chat, me
 
 log = structlog.get_logger()
 
@@ -34,6 +34,11 @@ app.add_middleware(
 
 # ─── Routers ─────────────────────────────────────────────────
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(departments.router, prefix="/api/v1")
+app.include_router(agents.router, prefix="/api/v1")
+app.include_router(admin.router, prefix="/api/v1")
+app.include_router(chat.router, prefix="/api/v1")
+app.include_router(me.router, prefix="/api/v1")
 
 
 @app.get("/api/health")
