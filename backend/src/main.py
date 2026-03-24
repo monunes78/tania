@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 import structlog
 
 from src.config import settings
+from src.api.v1 import auth
 
 log = structlog.get_logger()
 
@@ -31,13 +32,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ─── Routers ─────────────────────────────────────────────────
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+
 
 @app.get("/api/health")
 async def health():
     return {"status": "ok", "version": "0.1.0"}
-
-
-# Routers serão registrados aqui conforme implementados
-# from src.api.v1 import auth, chat, documents, departments, agents, admin
-# app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
-# app.include_router(chat.router, prefix="/api/v1/chat", tags=["chat"])

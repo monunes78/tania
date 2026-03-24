@@ -2,6 +2,13 @@
 Seed inicial dos departamentos TanIA.
 Uso: docker-compose exec backend python scripts/seed_departments.py
 """
+import sys
+import os
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
+from src.db.session import SessionLocal
+from src.models.department import Department
 
 DEPARTMENTS = [
     {"name": "DHO — Desenvolvimento Humano e Organizacional", "slug": "dho", "icon": "users"},
@@ -30,10 +37,27 @@ DEPARTMENTS = [
 
 
 def seed():
-    print(f"Seed: {len(DEPARTMENTS)} departamentos prontos para inserção.")
-    for d in DEPARTMENTS:
-        print(f"  ✓ {d['name']} ({d['slug']})")
-    print("\nImplementar inserção no banco após configurar SQLAlchemy.")
+    db = SessionLocal()
+    try:
+        inserted = 0
+        skipped = 0
+        for d in DEPARTMENTS:
+            exists = db.query(Department).filter(Department.slug == d["slug"]).first()
+            if exists:
+                skipped += 1
+                continue
+            dept = Department(**d)
+            db.add(dept)
+            inserted += 1
+
+        db.commit()
+        print(f"✅ Seed concluído: {inserted} inseridos, {skipped} já existiam.")
+    except Exception as e:
+        db.rollback()
+        print(f"❌ Erro no seed: {e}")
+        raise
+    finally:
+        db.close()
 
 
 if __name__ == "__main__":
