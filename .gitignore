@@ -1,0 +1,72 @@
+# ─── Ambiente ───────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─── Certificados (nunca versionar) ─────────────────
+cert/
+*.pfx
+*.pem
+*.key
+*.crt
+*.p12
+nginx/ssl/
+
+# ─── Node / Next.js ──────────────────────────────────
+node_modules/
+.next/
+out/
+build/
+frontend/.next/
+frontend/out/
+frontend/node_modules/
+
+# ─── Python ──────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+backend/.venv/
+
+# ─── Docker ──────────────────────────────────────────
+docker-compose.override.yml
+
+# ─── Dados locais (volumes) ───────────────────────────
+.qdrant/
+.minio/
+.redis/
+data/
+
+# ─── Logs ────────────────────────────────────────────
+*.log
+logs/
+.claude-flow/logs/
+
+# ─── IDEs ────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# ─── OS ──────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Obsidian (documentação local, não sobe) ─────────
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+
+# ─── Ruflo / Claude Flow ─────────────────────────────
+.claude-flow/
+.swarm/
+.agent/

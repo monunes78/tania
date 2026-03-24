@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "tania-backend"
+version = "0.1.0"
+description = "TanIA — Backend FastAPI"
+requires-python = ">=3.12"
+dependencies = [
+    # ─── Web Framework ───────────────────────────────
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "python-multipart>=0.0.12",
+
+    # ─── Banco de Dados ──────────────────────────────
+    "sqlalchemy>=2.0",
+    "alembic>=1.14",
+    "pyodbc>=5.2",          # SQL Server
+    "aioodbc>=0.5",         # async SQL Server
+
+    # ─── Auth ─────────────────────────────────────────
+    "ldap3>=2.9",
+    "python-jose[cryptography]>=3.3",
+    "passlib[bcrypt]>=1.7",
+
+    # ─── LLM / RAG ───────────────────────────────────
+    "litellm>=1.55",
+    "sentence-transformers>=3.3",
+    "qdrant-client>=1.12",
+
+    # ─── Processamento de Documentos ─────────────────
+    "pdfplumber>=0.11",
+    "python-docx>=1.1",
+    "openpyxl>=3.1",
+    "unstructured>=0.16",
+
+    # ─── Filas / Workers ─────────────────────────────
+    "celery[redis]>=5.4",
+    "redis>=5.2",
+
+    # ─── Object Storage ──────────────────────────────
+    "minio>=7.2",
+
+    # ─── Criptografia ────────────────────────────────
+    "cryptography>=44",
+
+    # ─── Utilitários ─────────────────────────────────
+    "pydantic-settings>=2.7",
+    "httpx>=0.28",
+    "python-dotenv>=1.0",
+    "structlog>=24",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]

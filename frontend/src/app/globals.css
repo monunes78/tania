@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+/* ─── Cores TANAC ───────────────────────────────────────── */
+:root {
+  --primary: #94c11f;
+  --primary-foreground: #ffffff;
+  --primary-hover: #7ea819;
+
+  --background: #f8fafc;
+  --foreground: #020617;
+
+  --card: #ffffff;
+  --card-foreground: #020617;
+
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+
+  --border: #cbd5e1;
+  --input: #e2e8f0;
+  --ring: #94c11f;
+
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+
+  --success: #16a34a;
+  --warning: #d97706;
+
+  --radius: 0.5rem;
+
+  --sidebar-width: 260px;
+}
+
+.dark {
+  --primary: #94c11f;
+  --primary-foreground: #ffffff;
+  --primary-hover: #aad424;
+
+  --background: #09090b;
+  --foreground: #fafafa;
+
+  --card: #101012;
+  --card-foreground: #fafafa;
+
+  --muted: #18181b;
+  --muted-foreground: #a1a1aa;
+
+  --border: #1e1e21;
+  --input: #27272a;
+
+  --destructive: #7f1d1d;
+  --destructive-foreground: #fafafa;
+}
+
+/* ─── Base ──────────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Scrollbar customizada ──────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--muted); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
+
+/* ─── SSE Streaming cursor ────────────────────────────────── */
+.streaming::after {
+  content: "▋";
+  animation: blink 1s step-end infinite;
+}
+@keyframes blink {
+  50% { opacity: 0; }
+}

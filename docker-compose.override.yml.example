@@ -1,0 +1,33 @@
+# Renomeie este arquivo para docker-compose.override.yml no ambiente de desenvolvimento
+# Este arquivo NÃO é versionado no git (.gitignore)
+
+services:
+  frontend:
+    build:
+      target: development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+
+  backend:
+    volumes:
+      - ./backend:/app
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=debug
+
+  qdrant:
+    ports:
+      - "6333:6333"   # acesso direto à Web UI em dev
+
+  minio:
+    ports:
+      - "9001:9001"   # console MinIO em dev
+
+  redis:
+    ports:
+      - "6379:6379"   # acesso direto ao Redis em dev

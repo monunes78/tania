@@ -1,0 +1,38 @@
+model_list:
+  # ─── OpenRouter (padrão para testes) ─────────────────
+  - model_name: openrouter/claude-sonnet
+    litellm_params:
+      model: openrouter/anthropic/claude-sonnet-4-5
+      api_key: os.environ/OPENROUTER_API_KEY
+      api_base: https://openrouter.ai/api/v1
+
+  - model_name: openrouter/llama
+    litellm_params:
+      model: openrouter/meta-llama/llama-3.1-8b-instruct
+      api_key: os.environ/OPENROUTER_API_KEY
+      api_base: https://openrouter.ai/api/v1
+
+  - model_name: openrouter/mistral
+    litellm_params:
+      model: openrouter/mistralai/mistral-7b-instruct
+      api_key: os.environ/OPENROUTER_API_KEY
+      api_base: https://openrouter.ai/api/v1
+
+  # ─── Ollama local (futuro — servidor separado) ────────
+  # - model_name: ollama/llama3
+  #   litellm_params:
+  #     model: ollama/llama3.1:8b
+  #     api_base: http://srv-ollama.tanac.local:11434
+
+  # ─── Anthropic direto (futuro) ────────────────────────
+  # - model_name: claude-sonnet
+  #   litellm_params:
+  #     model: claude-sonnet-4-5
+  #     api_key: os.environ/ANTHROPIC_API_KEY
+
+litellm_settings:
+  drop_params: true
+  request_timeout: 120
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
