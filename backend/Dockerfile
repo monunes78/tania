@@ -28,10 +28,9 @@ RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
 
 # Dependências Python
 COPY pyproject.toml .
+COPY src/ ./src/
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
-    && pip install --no-cache-dir -e .
-
-COPY . .
+    && pip install --no-cache-dir .
 
 EXPOSE 8000
 
