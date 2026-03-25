@@ -1,73 +1,86 @@
-.PHONY: dev prod deploy logs stop restart build migrate seed help
+.PHONY: dev prod deploy update logs stop restart build migrate seed help ps \
+        shell-backend shell-frontend logs-backend logs-frontend logs-celery migrate-down
+
+DC = docker compose
 
 # ─── Desenvolvimento ──────────────────────────────────────────
 dev:
 	cp -n docker-compose.override.yml.example docker-compose.override.yml 2>/dev/null || true
-	docker-compose up --build
+	$(DC) up --build
 
 # ─── Produção ────────────────────────────────────────────────
 prod:
-	docker-compose up --build -d
+	$(DC) up --build -d
 
-# ─── Deploy (rodar na VM) ────────────────────────────────────
+# ─── Deploy inicial (primeira instalação) ────────────────────
 deploy:
-	chmod +x deploy.sh && ./deploy.sh
+	chmod +x deploy.sh && sudo ./deploy.sh
+
+# ─── Atualização (usa update.sh) ─────────────────────────────
+update:
+	chmod +x update.sh && ./update.sh
+
+update-force:
+	chmod +x update.sh && ./update.sh --force-rebuild
 
 # ─── Logs ────────────────────────────────────────────────────
 logs:
-	docker-compose logs -f
+	$(DC) logs -f
 
 logs-backend:
-	docker-compose logs -f backend
+	$(DC) logs -f backend
 
 logs-frontend:
-	docker-compose logs -f frontend
+	$(DC) logs -f frontend
 
 logs-celery:
-	docker-compose logs -f celery
+	$(DC) logs -f celery
 
 # ─── Controle ────────────────────────────────────────────────
 stop:
-	docker-compose down
+	$(DC) down
 
 restart:
-	docker-compose restart
+	$(DC) restart
 
 build:
-	docker-compose build --no-cache
+	$(DC) build --no-cache
 
 # ─── Banco ───────────────────────────────────────────────────
 migrate:
-	docker-compose exec backend alembic upgrade head
+	$(DC) exec backend alembic upgrade head
 
 migrate-down:
-	docker-compose exec backend alembic downgrade -1
+	$(DC) exec backend alembic downgrade -1
 
 seed:
-	docker-compose exec backend python scripts/seed_departments.py
+	$(DC) exec backend python scripts/seed_departments.py
 
 # ─── Utilitários ─────────────────────────────────────────────
 shell-backend:
-	docker-compose exec backend bash
+	$(DC) exec backend bash
 
 shell-frontend:
-	docker-compose exec frontend sh
+	$(DC) exec frontend sh
 
 ps:
-	docker-compose ps
+	$(DC) ps
 
 # ─── Ajuda ───────────────────────────────────────────────────
 help:
 	@echo ""
 	@echo "TanIA — Comandos disponíveis:"
 	@echo ""
-	@echo "  make dev          Inicia em modo desenvolvimento (hot reload)"
-	@echo "  make prod         Inicia em modo produção"
-	@echo "  make deploy       Executa deploy completo (git pull + build + migrate)"
-	@echo "  make logs         Mostra logs de todos os serviços"
-	@echo "  make stop         Para todos os containers"
-	@echo "  make restart      Reinicia todos os containers"
-	@echo "  make migrate      Executa migrations pendentes"
-	@echo "  make seed         Popula departamentos iniciais"
-	@echo "  make ps           Lista status dos containers"
+	@echo "  make deploy        Primeira instalação completa (requer sudo)"
+	@echo "  make update        Atualiza o sistema com as últimas mudanças do git"
+	@echo "  make update-force  Força rebuild completo mesmo sem mudanças"
+	@echo "  make dev           Inicia em modo desenvolvimento (hot reload)"
+	@echo "  make prod          Inicia em modo produção"
+	@echo "  make logs          Mostra logs de todos os serviços"
+	@echo "  make stop          Para todos os containers"
+	@echo "  make restart       Reinicia todos os containers"
+	@echo "  make build         Rebuild sem cache"
+	@echo "  make migrate       Executa migrations pendentes"
+	@echo "  make seed          Popula departamentos iniciais"
+	@echo "  make ps            Lista status dos containers"
 	@echo ""
