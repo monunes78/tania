@@ -45,7 +45,7 @@ def _to_response(agent: Agent, db: Session) -> AgentResponse:
         department_name=dept.name if dept else None,
         llm_config_id=agent.llm_config_id,
         llm_config_name=llm.name if llm else None,
-        qdrant_collection=agent.qdrant_collection,
+        qdrant_collection=None,
         document_count=doc_count,
         created_at=agent.created_at,
         updated_at=agent.updated_at,
@@ -76,10 +76,7 @@ def create_agent(
         raise HTTPException(status_code=400, detail="Departamento não encontrado.")
 
     agent = Agent(**payload.model_dump())
-    # Gera nome da coleção Qdrant: agent_<slug-dept>_<id-curto>
     db.add(agent)
-    db.flush()  # gera o ID sem commit
-    agent.qdrant_collection = f"agent_{dept.slug}_{agent.id[:8]}"
     db.commit()
     db.refresh(agent)
     return _to_response(agent, db)

@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime, BigInteger, ForeignKey, Text
-from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from src.models.base import Base
 
@@ -11,7 +11,6 @@ class AuditLog(Base):
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     user_id = Column(
-        UNIQUEIDENTIFIER,
         ForeignKey("tania.users.id"),
         nullable=True,
     )

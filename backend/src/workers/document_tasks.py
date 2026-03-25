@@ -1,5 +1,5 @@
 """
-Celery task: ingestão de documentos → parse → chunk → embed → Qdrant.
+Celery task: ingestão de documentos → parse → chunk → embed → pgvector.
 """
 import structlog
 from datetime import datetime
@@ -12,20 +12,21 @@ log = structlog.get_logger()
 @celery_app.task(name="ingest_document", bind=True, max_retries=2)
 def ingest_document(self, document_id: str):
     """
-    Pipeline completo de ingestão:
+    Pipeline de ingestão:
     1. Busca documento no banco
     2. Download do MinIO
-    3. Parse do arquivo
-    4. Chunking
-    5. Embedding (sentence-transformers local)
-    6. Upsert no Qdrant
+    3. Parse do arquivo (PDF/DOCX/XLSX/TXT)
+    4. Chunking por palavras com overlap
+    5. Embedding local (MiniLM-L12-v2)
+    6. Upsert no pgvector (PostgreSQL)
     7. Atualiza status no banco
     """
     from src.db.session import SessionLocal
     from src.models.document import Document
     from src.models.agent import Agent
     from src.core.storage import minio_client
-    from src.core.rag import parsers, chunker, embedder, qdrant_store
+    from src.core.rag import parsers, chunker, embedder
+    from src.core.rag.vector_store import upsert_chunks
     from src.config import settings
 
     db = SessionLocal()
@@ -36,53 +37,44 @@ def ingest_document(self, document_id: str):
             return
 
         agent = db.query(Agent).filter(Agent.id == doc.agent_id).first()
-        if not agent or not agent.qdrant_collection:
-            _fail(db, doc, "Agente sem coleção Qdrant configurada")
+        if not agent:
+            _fail(db, doc, "Agente não encontrado")
             return
 
-        # Marca como processando
         doc.status = "processing"
         db.commit()
 
         log.info("ingest.start", document_id=document_id, filename=doc.original_name)
 
-        # 1. Download MinIO
+        # Download MinIO
         raw = minio_client.download_bytes(settings.MINIO_BUCKET, doc.minio_path)
 
-        # 2. Parse
+        # Parse
         text = parsers.extract_text(raw, doc.file_type)
         if not text.strip():
             _fail(db, doc, "Arquivo sem conteúdo extraível")
             return
 
-        # 3. Chunking
+        # Chunking
         chunks = chunker.chunk_text(text, chunk_size=400, overlap=50)
         if not chunks:
             _fail(db, doc, "Nenhum chunk gerado")
             return
 
-        # 4. Embedding (em lotes de 64)
+        # Embedding em lotes de 64
         vectors = []
-        batch_size = 64
-        for i in range(0, len(chunks), batch_size):
-            batch = chunks[i:i + batch_size]
-            vectors.extend(embedder.embed(batch))
+        for i in range(0, len(chunks), 64):
+            vectors.extend(embedder.embed(chunks[i:i + 64]))
 
-        # 5. Upsert no Qdrant
-        metadata = {
-            "agent_id": str(agent.id),
-            "filename": doc.original_name,
-            "classification": doc.classification,
-        }
-        count = qdrant_store.upsert_chunks(
-            collection_name=agent.qdrant_collection,
-            document_id=document_id,
+        # Upsert no pgvector
+        count = upsert_chunks(
+            db=db,
+            document_id=str(doc.id),
+            agent_id=str(doc.agent_id),
             chunks=chunks,
             vectors=vectors,
-            metadata=metadata,
         )
 
-        # 6. Atualiza documento
         doc.status = "indexed"
         doc.chunk_count = count
         doc.indexed_at = datetime.utcnow()
@@ -105,7 +97,7 @@ def ingest_document(self, document_id: str):
         db.close()
 
 
-def _fail(db, doc: "Document", message: str):
+def _fail(db, doc, message: str):
     doc.status = "error"
     doc.error_message = message[:500]
     db.commit()

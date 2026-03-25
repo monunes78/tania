@@ -58,16 +58,13 @@ def _get_or_create_conversation(
 
 def _retrieve_context(agent: Agent, query: str, user_id: str, db: Session) -> tuple[str, List[str]]:
     """
-    Busca chunks relevantes no Qdrant.
+    Busca chunks relevantes via pgvector.
     Retorna (context_block, list_of_doc_ids_used).
     """
-    if not agent.qdrant_collection:
-        return "", []
-
     try:
-        from src.core.rag import embedder, qdrant_store
+        from src.core.rag import embedder
+        from src.core.rag.vector_store import search as vector_search
 
-        # Documentos que o usuário pode ver
         accessible_docs = (
             db.query(Document)
             .filter(
@@ -77,7 +74,7 @@ def _retrieve_context(agent: Agent, query: str, user_id: str, db: Session) -> tu
             )
             .all()
         )
-        # TODO Phase 3+: adicionar documentos confidenciais onde user_id está na access_list
+        # TODO Phase 5: incluir docs confidenciais com acesso individual
 
         if not accessible_docs:
             return "", []
@@ -85,33 +82,32 @@ def _retrieve_context(agent: Agent, query: str, user_id: str, db: Session) -> tu
         allowed_ids = [str(d.id) for d in accessible_docs]
         query_vector = embedder.embed_one(query)
 
-        results = qdrant_store.search(
-            collection_name=agent.qdrant_collection,
+        results = vector_search(
+            db=db,
+            agent_id=str(agent.id),
             query_vector=query_vector,
             top_k=agent.max_context_chunks,
             score_threshold=0.35,
-            filter_document_ids=allowed_ids,
+            allowed_document_ids=allowed_ids,
         )
 
         if not results:
             return "", []
 
-        # Monta bloco de contexto com citações
         lines = ["## Contexto relevante da base de conhecimento:\n"]
-        used_ids = []
+        used_ids: List[str] = []
         doc_names: dict[str, str] = {str(d.id): d.original_name for d in accessible_docs}
 
         for i, hit in enumerate(results, 1):
-            doc_id = hit.payload.get("document_id", "")
+            doc_id = hit["document_id"]
             doc_name = doc_names.get(doc_id, "Documento")
-            lines.append(f"[{i}] **{doc_name}** (relevância: {hit.score:.0%})\n{hit.payload.get('text', '')}\n")
+            lines.append(f"[{i}] **{doc_name}** (relevância: {hit['score']:.0%})\n{hit['content']}\n")
             if doc_id not in used_ids:
                 used_ids.append(doc_id)
 
         return "\n".join(lines), used_ids
 
     except Exception:
-        # RAG falha silenciosamente — LLM responde sem contexto
         return "", []
 
 

@@ -13,21 +13,25 @@ dependencies = [
     "uvicorn[standard]>=0.32",
     "python-multipart>=0.0.12",
 
-    # ─── Banco de Dados ──────────────────────────────
+    # ─── Banco de Dados (PostgreSQL / Supabase) ──────
     "sqlalchemy>=2.0",
     "alembic>=1.14",
-    "pyodbc>=5.2",          # SQL Server
-    "aioodbc>=0.5",         # async SQL Server
+    "psycopg2-binary>=2.9",     # driver PostgreSQL principal
+    "pgvector>=0.3",            # extensão pgvector para SQLAlchemy
+
+    # ─── Banco externo (agentes — SQL Server, etc.) ──
+    "pyodbc>=5.2",              # SQL Server externo via ODBC
 
     # ─── Auth ─────────────────────────────────────────
     "ldap3>=2.9",
     "python-jose[cryptography]>=3.3",
     "passlib[bcrypt]>=1.7",
 
-    # ─── LLM / RAG ───────────────────────────────────
+    # ─── LLM ─────────────────────────────────────────
     "litellm>=1.55",
+
+    # ─── RAG (embeddings locais + pgvector) ──────────
     "sentence-transformers>=3.3",
-    "qdrant-client>=1.12",
 
     # ─── Processamento de Documentos ─────────────────
     "pdfplumber>=0.11",

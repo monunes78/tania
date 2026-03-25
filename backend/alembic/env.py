@@ -1,19 +1,16 @@
 import sys
 import os
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, pool, text
 from alembic import context
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from src.config import settings
-from src.models import Base  # importa todos os modelos
+from src.models import Base
 
 config = context.config
-config.set_main_option(
-    "sqlalchemy.url",
-    f"mssql+pyodbc:///?odbc_connect={settings.SQL_CONNECTION_STRING}",
-)
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -29,6 +26,7 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         include_schemas=True,
+        version_table_schema="tania",
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -41,10 +39,16 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
     with connectable.connect() as connection:
+        connection.execute(text("CREATE SCHEMA IF NOT EXISTS tania"))
+        connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        connection.execute(text('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"'))
+        connection.commit()
+
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
             include_schemas=True,
+            version_table_schema="tania",
         )
         with context.begin_transaction():
             context.run_migrations()

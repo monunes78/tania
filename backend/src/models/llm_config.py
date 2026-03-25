@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Text
-from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from src.models.base import Base
 
@@ -10,9 +10,8 @@ class LLMConfiguration(Base):
     __tablename__ = "llm_configurations"
     __table_args__ = {"schema": "tania"}
 
-    id = Column(UNIQUEIDENTIFIER, primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     created_by = Column(
-        UNIQUEIDENTIFIER,
         ForeignKey("tania.users.id"),
         nullable=True,
     )

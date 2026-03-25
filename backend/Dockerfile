@@ -2,18 +2,25 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Dependências do sistema
+# Dependências de sistema
+# libpq-dev   → psycopg2 (PostgreSQL)
+# unixodbc    → pyodbc (SQL Server externo via agentes)
+# msodbcsql18 → driver Microsoft para SQL Server
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     curl \
+    libpq-dev \
     unixodbc \
     unixodbc-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Driver ODBC para SQL Server
-RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg \
-    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" > /etc/apt/sources.list.d/mssql-release.list \
+# Driver ODBC Microsoft — apenas para consultas de agentes a SQL Server externo
+RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
+    | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] \
+       https://packages.microsoft.com/debian/12/prod bookworm main" \
+       > /etc/apt/sources.list.d/mssql-release.list \
     && apt-get update \
     && ACCEPT_EULA=Y apt-get install -y msodbcsql18 \
     && rm -rf /var/lib/apt/lists/*

@@ -195,10 +195,9 @@ def delete_document(
 
     agent = db.query(Agent).filter(Agent.id == agent_id).first()
 
-    # Remove do Qdrant
-    if agent and agent.qdrant_collection:
-        from src.core.rag import qdrant_store
-        qdrant_store.delete_document(agent.qdrant_collection, doc_id)
+    # Remove chunks do pgvector
+    from src.core.rag.vector_store import delete_document_chunks
+    delete_document_chunks(db, doc_id)
 
     # Remove do MinIO
     try:

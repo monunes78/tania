@@ -14,22 +14,18 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "production"
     LOG_LEVEL: str = "info"
 
-    # ─── SQL Server ───────────────────────────────────
-    SQL_SERVER_HOST: str
-    SQL_SERVER_PORT: int = 1433
-    SQL_SERVER_DB: str
-    SQL_SERVER_USER: str
-    SQL_SERVER_PASSWORD: str
+    # ─── PostgreSQL / Supabase ────────────────────────
+    POSTGRES_HOST: str = "supabase-db"
+    POSTGRES_PORT: int = 5432
+    POSTGRES_DB: str = "postgres"
+    POSTGRES_USER: str = "postgres"
+    POSTGRES_PASSWORD: str
 
     @property
-    def SQL_CONNECTION_STRING(self) -> str:
+    def DATABASE_URL(self) -> str:
         return (
-            f"DRIVER={{ODBC Driver 18 for SQL Server}};"
-            f"SERVER={self.SQL_SERVER_HOST},{self.SQL_SERVER_PORT};"
-            f"DATABASE={self.SQL_SERVER_DB};"
-            f"UID={self.SQL_SERVER_USER};"
-            f"PWD={self.SQL_SERVER_PASSWORD};"
-            f"TrustServerCertificate=yes;"
+            f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
 
     # ─── LDAP / AD ────────────────────────────────────
@@ -47,10 +43,6 @@ class Settings(BaseSettings):
 
     # ─── Criptografia ─────────────────────────────────
     ENCRYPTION_KEY: str
-
-    # ─── Qdrant ───────────────────────────────────────
-    QDRANT_HOST: str = "qdrant"
-    QDRANT_PORT: int = 6333
 
     # ─── Redis ────────────────────────────────────────
     REDIS_URL: str = "redis://redis:6379/0"

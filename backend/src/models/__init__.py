@@ -9,10 +9,11 @@ from src.models.schedule import Schedule
 from src.models.db_connection import DBConnection
 from src.models.audit_log import AuditLog
 from src.models.agent_prompt_history import AgentPromptHistory
+from src.models.document_chunk import DocumentChunk
 
 __all__ = [
     "Base", "User", "Department", "DepartmentAccess", "Agent",
     "Document", "DocumentAccess", "Conversation", "Message",
-    "LLMConfiguration", "Schedule", "DBConnection", "AuditLog",
+    "LLMConfiguration", "Schedule", "DBConnection", "AuditLog", "DocumentChunk",
     "AgentPromptHistory",
 ]

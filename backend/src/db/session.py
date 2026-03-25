@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from typing import Generator
 import structlog
@@ -8,7 +8,7 @@ from src.config import settings
 log = structlog.get_logger()
 
 engine = create_engine(
-    f"mssql+pyodbc:///?odbc_connect={settings.SQL_CONNECTION_STRING}",
+    settings.DATABASE_URL,
     pool_size=10,
     max_overflow=20,
     pool_timeout=30,

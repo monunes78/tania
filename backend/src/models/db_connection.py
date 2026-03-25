@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime, ForeignKey, Text
-from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from src.models.base import Base
 
@@ -11,14 +11,11 @@ class DBConnection(Base):
     __tablename__ = "db_connections"
     __table_args__ = {"schema": "tania"}
 
-    id = Column(UNIQUEIDENTIFIER, primary_key=True, default=lambda: str(uuid.uuid4()))
-    agent_id = Column(
-        UNIQUEIDENTIFIER,
-        ForeignKey("tania.agents.id"),
-        nullable=False,
-    )
-    # Nome exibido ao LLM para orientação contextual
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    agent_id = Column(UUID(as_uuid=True), ForeignKey("tania.agents.id"), nullable=False)
     display_name = Column(String(100), nullable=False)
+    # db_type: sqlserver | postgresql | mysql
+    db_type = Column(String(20), nullable=False, default="sqlserver")
     server_host = Column(String(200), nullable=False)
     server_port = Column(String(10), default="1433")
     database_name = Column(String(100), nullable=False)
