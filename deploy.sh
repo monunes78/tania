@@ -383,7 +383,7 @@ header "Verificação de arquivos de configuração"
 MISSING_FILES=()
 [[ ! -f "$APP_DIR/nginx/nginx.conf" ]]           && MISSING_FILES+=("nginx/nginx.conf")
 [[ ! -f "$APP_DIR/litellm-proxy/config.yaml" ]]  && MISSING_FILES+=("litellm-proxy/config.yaml")
-[[ ! -f "$APP_DIR/supabase/init/00_init.sql" ]]  && MISSING_FILES+=("supabase/init/00_init.sql")
+[[ ! -f "$APP_DIR/supabase/init/00_init.sh" ]] && [[ ! -f "$APP_DIR/supabase/init/00_init.sql" ]] && MISSING_FILES+=("supabase/init/00_init.sh")
 [[ ! -f "$APP_DIR/docker-compose.yml" ]]         && MISSING_FILES+=("docker-compose.yml")
 
 if [[ ${#MISSING_FILES[@]} -gt 0 ]]; then
