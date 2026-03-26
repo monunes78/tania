@@ -11,10 +11,11 @@ class User(Base):
     __table_args__ = {"schema": "tania"}
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    ad_object_id = Column(String(256), nullable=False, unique=True)
+    ad_object_id = Column(String(256), nullable=True, unique=True)
     username = Column(String(100), nullable=False)
     email = Column(String(256), nullable=False)
     display_name = Column(String(256))
+    password_hash = Column(String(256), nullable=True)  # login local (None = só LDAP)
     is_admin = Column(Boolean, default=False, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     last_login = Column(DateTime)

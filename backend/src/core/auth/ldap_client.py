@@ -25,8 +25,12 @@ class LDAPUser:
 def authenticate(username: str, password: str) -> Optional[LDAPUser]:
     """
     Autentica usuário no AD e retorna seus atributos.
-    Retorna None se credenciais inválidas.
+    Retorna None se credenciais inválidas ou LDAP não configurado.
     """
+    if not settings.LDAP_SERVER:
+        log.debug("ldap.not_configured", msg="LDAP_SERVER vazio, pulando autenticação AD")
+        return None
+
     user_upn = f"{username}@{settings.LDAP_DOMAIN}"
 
     try:

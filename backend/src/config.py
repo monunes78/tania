@@ -28,12 +28,12 @@ class Settings(BaseSettings):
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
 
-    # ─── LDAP / AD ────────────────────────────────────
-    LDAP_SERVER: str
-    LDAP_DOMAIN: str
-    LDAP_BASE_DN: str
-    LDAP_BIND_USER: str
-    LDAP_BIND_PASSWORD: str
+    # ─── LDAP / AD (opcional — vazio = login só local) ─
+    LDAP_SERVER: str = ""
+    LDAP_DOMAIN: str = ""
+    LDAP_BASE_DN: str = ""
+    LDAP_BIND_USER: str = ""
+    LDAP_BIND_PASSWORD: str = ""
 
     # ─── JWT ──────────────────────────────────────────
     JWT_SECRET: str

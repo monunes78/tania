@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
+from passlib.hash import bcrypt
 import structlog
 
 from src.db.session import get_db
@@ -37,28 +38,43 @@ def login(
     response: Response,
     db: Session = Depends(get_db),
 ):
-    # 1. Autenticar no AD
-    ldap_user = ldap_client.authenticate(body.username, body.password)
-    if not ldap_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuário ou senha inválidos",
-        )
+    user: Optional[User] = None
 
-    # 2. Upsert do usuário no banco
-    user = db.query(User).filter(User.ad_object_id == ldap_user.object_id).first()
+    # 1. Tentar autenticação local (usuários com password_hash)
+    local_user = db.query(User).filter(User.username == body.username).first()
+    if local_user and local_user.password_hash:
+        if bcrypt.verify(body.password, local_user.password_hash):
+            user = local_user
+            log.info("auth.local.success", username=user.username)
+        else:
+            log.info("auth.local.failed", username=body.username)
+
+    # 2. Se não logou local, tentar LDAP/AD
     if not user:
-        user = User(
-            ad_object_id=ldap_user.object_id,
-            username=ldap_user.username,
-            email=ldap_user.email,
-            display_name=ldap_user.display_name,
-        )
-        db.add(user)
-    else:
-        user.username = ldap_user.username
-        user.email = ldap_user.email
-        user.display_name = ldap_user.display_name
+        ldap_user = ldap_client.authenticate(body.username, body.password)
+        if not ldap_user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Usuário ou senha inválidos",
+            )
+
+        # Upsert do usuário AD no banco
+        user = db.query(User).filter(User.ad_object_id == ldap_user.object_id).first()
+        if not user:
+            user = User(
+                ad_object_id=ldap_user.object_id,
+                username=ldap_user.username,
+                email=ldap_user.email,
+                display_name=ldap_user.display_name,
+            )
+            db.add(user)
+        else:
+            user.username = ldap_user.username
+            user.email = ldap_user.email
+            user.display_name = ldap_user.display_name
+
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuário desativado")
 
     user.last_login = datetime.utcnow()
     db.commit()
