@@ -29,6 +29,9 @@ RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
 # Dependências Python
 COPY pyproject.toml .
 COPY src/ ./src/
+COPY alembic.ini .
+COPY alembic/ ./alembic/
+COPY scripts/ ./scripts/
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
     && pip install --no-cache-dir .
 
